@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -8,7 +9,9 @@ require('dotenv').config();
 deployAccountKey = process.env.DEPLOY_ACCOUNT_KEY;
 module.exports = {
   solidity: "0.8.16",
+  defaultNetwork: "goerli",
   networks: {
+    hardhat: {},
   	goerli: {
       accounts: [deployAccountKey],
       chainId: 5,

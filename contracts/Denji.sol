@@ -125,14 +125,14 @@ contract DENJI is ERC20Detailed, Ownable {
     IERC20 private constant USDC =
         IERC20(0x07865c6E87B9F70255377e024ace6630C1Eaa37F);
 
-    uint256 public liquidityFee = 5;
-    uint256 private constant MaxliquidityFee = 5;
-    uint256 public treasuryFee = 3;
-    uint256 private constant MaxtreasuryFee = 3;
+    uint256 public liquidityFee = 2;
+    uint256 private constant MaxliquidityFee = 2;
+    uint256 public treasuryFee = 2;
+    uint256 private constant MaxtreasuryFee = 2;
     uint256 public totalFee = liquidityFee.add(treasuryFee);
     uint256 public feeDenominator = 100;
-    uint256 public rewardYield = 1272444;
-    uint256 public rewardYieldDenominator = 10000000000;
+    uint256 public rewardYield = 1272444125;
+    uint256 public rewardYieldDenominator = 10000000000000;
     uint256 public rebaseFrequency = 1 days;
     uint256 public nextRebase = block.timestamp + rebaseFrequency;
     bool public autoRebase = true;
