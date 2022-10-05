@@ -123,7 +123,7 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant MAX_UINT256 = type(uint256).max;
     uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 4500 * 10**DECIMALS;
     IERC20 private constant USDC =
-        IERC20(0x07865c6E87B9F70255377e024ace6630C1Eaa37F);
+        IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
     uint256 public liquidityFee = 2;
     uint256 private constant MaxliquidityFee = 2;
