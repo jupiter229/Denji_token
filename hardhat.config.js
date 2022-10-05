@@ -9,9 +9,15 @@ require('dotenv').config();
 deployAccountKey = process.env.DEPLOY_ACCOUNT_KEY;
 module.exports = {
   solidity: "0.8.16",
-  defaultNetwork: "goerli",
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {},
+    mainnet: {
+      accounts: [deployAccountKey],
+      chainId: 1,
+      url: `https://eth-mainnet.alchemyapi.io/v2/${alchemyapi}`,
+      timeout: 200000,
+    },
   	goerli: {
       accounts: [deployAccountKey],
       chainId: 5,
