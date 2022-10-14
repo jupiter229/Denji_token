@@ -132,7 +132,7 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 public totalFee = liquidityFee.add(treasuryFee);
     uint256 public feeDenominator = 100;
     uint256 public rewardYield = 1272444125;
-    uint256 public rewardYieldDenominator = 10000000000000;
+    uint256 public rewardYieldDenominator = 100000000000;
     uint256 public rebaseFrequency = 1 days;
     uint256 public nextRebase = block.timestamp + rebaseFrequency;
     bool public autoRebase = true;
