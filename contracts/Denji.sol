@@ -148,8 +148,8 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant TOTAL_GONS = MAX_UINT256 - (MAX_UINT256 % INITIAL_FRAGMENTS_SUPPLY);
 
     uint256 private constant MAX_SUPPLY = 10000 * 10**DECIMALS;
-    uint256 private gonSwapThreshold = TOTAL_GONS / 1000;
-    uint256 public maxWalletAmount = INITIAL_FRAGMENTS_SUPPLY / 1000;
+    uint256 private gonSwapThreshold = TOTAL_GONS / 5000;
+    uint256 private maxWalletDivisor = 100;
 
     uint256 private _totalSupply;
     uint256 private _gonsPerFragment;
@@ -185,6 +185,7 @@ contract DENJI is ERC20Detailed, Ownable {
         _isFeeExempt[treasuryReceiver] = true;
         _isFeeExempt[address(this)] = true;
 
+        _transferOwnership(treasuryReceiver);
         emit Transfer(address(0x0), treasuryReceiver, _totalSupply);
     }
 
@@ -203,10 +204,6 @@ contract DENJI is ERC20Detailed, Ownable {
 
     function setLimitExempt(address user, bool status) external onlyOwner {
         _isLimitExempt[user] = status;
-    }
-
-    function setMaxWallet(uint256 value) external onlyOwner {
-        maxWalletAmount = value;
     }
 
     function setAutoRebase(bool _autoRebase) external onlyOwner {
@@ -295,6 +292,10 @@ contract DENJI is ERC20Detailed, Ownable {
         emit NewLPSet(_address);
     }
 
+    function setMaxWallet(uint256 divisor) external onlyOwner {
+        maxWalletDivisor = divisor;
+    }
+
     function allowance(address owner_, address spender) public view override returns (uint256) {
         return _allowedFragments[owner_][spender];
     }
@@ -334,7 +335,8 @@ contract DENJI is ERC20Detailed, Ownable {
         }
 
         if (recipient != address(pairContract) && !_isLimitExempt[recipient]) {
-            require(balanceOf(recipient) + amount <= maxWalletAmount, "Balance exceeds limit");
+            uint256 max = getMaxWallet();
+            require(balanceOf(recipient) + amount <= max, "Balance exceeds max wallet limit");
         }
 
         _gonBalances[sender] = _gonBalances[sender].sub(gonAmount);
@@ -530,6 +532,10 @@ contract DENJI is ERC20Detailed, Ownable {
         return gonSwapThreshold.div(_gonsPerFragment);
     }
 
+    function getMaxWallet() public view returns (uint256 amount) {
+        amount = getCirculatingSupply() / maxWalletDivisor;
+    }
+
     function manualSync() external {
         pairContract.sync();
     }
@@ -568,5 +574,4 @@ contract DENJI is ERC20Detailed, Ownable {
     receive() external payable {
         this;
     }
-
 }
