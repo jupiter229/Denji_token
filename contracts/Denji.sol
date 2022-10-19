@@ -75,6 +75,7 @@ contract DENJI is ERC20Detailed, Ownable {
     event NewNextRebase(uint256 nextRebase);
     event NewRewardYield(uint256 _rewardYield, uint256 _rewardYieldDenominator);
     event NewAutoRebase(bool _autoRebase);
+    event NewMaxWalletEnable(bool _isMaxWalletEnabled);
     event NewRebaseFrequency(uint256 _rebaseFrequency);
     event DustSwiped(address _receiver, uint256 balance);
     event ManualRebase();
@@ -113,10 +114,8 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 4500 * 10**DECIMALS;
     IERC20 private constant USDC = IERC20(0x07865c6E87B9F70255377e024ace6630C1Eaa37F);
 
-    uint256 public liquidityFee = 2;
-    uint256 private constant MAX_LIQUIDITY_FEE = 2;
-    uint256 public treasuryFee = 2;
-    uint256 private constant MAX_TREASURY_FEE = 2;
+    uint256 public liquidityFee = 15;
+    uint256 public treasuryFee = 15;
     uint256 public totalFee = liquidityFee.add(treasuryFee);
 
     uint256 public feeDenominator = 100;
@@ -150,6 +149,7 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant MAX_SUPPLY = 10000 * 10**DECIMALS;
     uint256 private gonSwapThreshold = TOTAL_GONS / 5000;
     uint256 private maxWalletDivisor = 100;
+    bool public isMaxWalletEnabled = true;
 
     uint256 private _totalSupply;
     uint256 private _gonsPerFragment;
@@ -185,7 +185,6 @@ contract DENJI is ERC20Detailed, Ownable {
         _isFeeExempt[treasuryReceiver] = true;
         _isFeeExempt[address(this)] = true;
 
-        _transferOwnership(treasuryReceiver);
         emit Transfer(address(0x0), treasuryReceiver, _totalSupply);
     }
 
@@ -334,7 +333,7 @@ contract DENJI is ERC20Detailed, Ownable {
             swapBack();
         }
 
-        if (recipient != address(pairContract) && !_isLimitExempt[recipient]) {
+        if (recipient != address(pairContract) && !_isLimitExempt[recipient] && isMaxWalletEnabled) {
             uint256 max = getMaxWallet();
             require(balanceOf(recipient) + amount <= max, "Balance exceeds max wallet limit");
         }
@@ -491,7 +490,7 @@ contract DENJI is ERC20Detailed, Ownable {
     }
 
     function shouldTakeFee(address from, address to) internal view returns (bool) {
-        return (address(pairContract) == from || address(pairContract) == to) && (!_isFeeExempt[from]);
+        return (address(pairContract) != from ) && (address(pairContract) == to) && (!_isFeeExempt[from]);
     }
 
     function setSwapBackSettings(
@@ -511,6 +510,12 @@ contract DENJI is ERC20Detailed, Ownable {
             !inSwap &&
             swapEnabled &&
             _gonBalances[address(this)] >= gonSwapThreshold;
+    }
+
+    function setMaxWalletEnable(bool _isMaxWalletEnabled) external onlyOwner {
+        isMaxWalletEnabled = _isMaxWalletEnabled;
+
+        emit NewMaxWalletEnable(_isMaxWalletEnabled);
     }
 
     function getCirculatingSupply() public view returns (uint256) {
@@ -552,8 +557,6 @@ contract DENJI is ERC20Detailed, Ownable {
         uint256 _treasuryFee,
         uint256 _feeDenominator
     ) external onlyOwner {
-        require(_liquidityFee <= MAX_LIQUIDITY_FEE, "You can't set higher than MAX");
-        require(_treasuryFee <= MAX_TREASURY_FEE, "You can't set higher than MAX");
         liquidityFee = _liquidityFee;
         treasuryFee = _treasuryFee;
         totalFee = liquidityFee.add(treasuryFee);
