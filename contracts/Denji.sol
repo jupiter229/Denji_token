@@ -34,7 +34,11 @@ library Roles {
      * @dev Check if an account has this role.
      * @return bool
      */
-    function has(Role storage role, address account) internal view returns (bool) {
+    function has(Role storage role, address account)
+        internal
+        view
+        returns (bool)
+    {
         require(account != address(0), "Roles: account is the zero address");
         return role.bearer[account];
     }
@@ -69,6 +73,11 @@ abstract contract ERC20Detailed is IERC20 {
 }
 
 contract DENJI is ERC20Detailed, Ownable {
+    struct Fee {
+        uint16 liquidity;
+        uint16 treasury;
+    }
+
     using SafeMath for uint256;
 
     event LogRebase(uint256 indexed epoch, uint256 totalSupply);
@@ -85,8 +94,20 @@ contract DENJI is ERC20Detailed, Ownable {
     event AddressExemptedFromFee(address _addr);
     event NewSwapBackSet(bool _enabled, uint256 _num, uint256 _denom);
     event NewTargetLiquiditySet(uint256 target, uint256 accuracy);
-    event NewFeeReceiversSet(address _autoLiquidityReceiver, address _treasuryReceiver);
-    event NewFeesSet(uint256 _liquidityFee, uint256 _treasuryFee, uint256 _feeDenominator);
+    event NewFeeReceiversSet(
+        address _autoLiquidityReceiver,
+        address _treasuryReceiver
+    );
+    event NewBuyFeesSet(
+        uint256 _liquidityFee,
+        uint256 _treasuryFee,
+        uint256 _feeDenominator
+    );
+    event NewSellFeesSet(
+        uint256 _liquidityFee,
+        uint256 _treasuryFee,
+        uint256 _feeDenominator
+    );
 
     IUniswapV2Pair public pairContract;
 
@@ -98,7 +119,9 @@ contract DENJI is ERC20Detailed, Ownable {
 
     modifier initialDistributionLock() {
         require(
-            initialDistributionFinished || msg.sender == owner() || allowTransfer[msg.sender],
+            initialDistributionFinished ||
+                msg.sender == owner() ||
+                allowTransfer[msg.sender],
             "Initial distribution lock"
         );
         _;
@@ -112,13 +135,17 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant DECIMALS = 18;
     uint256 private constant MAX_UINT256 = type(uint256).max;
     uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 4500 * 10**DECIMALS;
-    IERC20 private constant USDC = IERC20(0x07865c6E87B9F70255377e024ace6630C1Eaa37F);
 
     uint256 public liquidityFee = 15;
     uint256 public treasuryFee = 15;
-    uint256 public totalFee = liquidityFee.add(treasuryFee);
 
-    uint256 public feeDenominator = 100;
+    Fee public buyFee;
+    Fee public sellFee;
+
+    uint256 private totalBuyFee;
+    uint256 private totalSellFee;
+
+    uint256 public feeDenominator = 1000;
     uint256 public rewardYield = 1272444125;
     uint256 public rewardYieldDenominator = 100000000000;
     uint256 public rebaseFrequency = 1 days;
@@ -144,7 +171,8 @@ contract DENJI is ERC20Detailed, Ownable {
         inSwap = false;
     }
 
-    uint256 private constant TOTAL_GONS = MAX_UINT256 - (MAX_UINT256 % INITIAL_FRAGMENTS_SUPPLY);
+    uint256 private constant TOTAL_GONS =
+        MAX_UINT256 - (MAX_UINT256 % INITIAL_FRAGMENTS_SUPPLY);
 
     uint256 private constant MAX_SUPPLY = 10000 * 10**DECIMALS;
     uint256 private gonSwapThreshold = TOTAL_GONS / 5000;
@@ -164,17 +192,19 @@ contract DENJI is ERC20Detailed, Ownable {
     ) ERC20Detailed("Denji", "$DENJI", uint8(DECIMALS)) {
         router = IUniswapV2Router02(_router);
 
-        address _pair = IUniswapV2Factory(IUniswapV2Router02(_router).factory()).createPair(
-            address(USDC),
+        address _pair = IUniswapV2Factory(router.factory()).createPair(
+            router.WETH(),
             address(this)
         );
+
+        buyFee = Fee(0, 0);
+        sellFee = Fee(150, 150);
+        totalSellFee = 300;
 
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
 
         _allowedFragments[address(this)][address(_router)] = type(uint256).max;
-        USDC.approve(address(_router), type(uint256).max);
-
         pairContract = IUniswapV2Pair(_pair);
 
         _totalSupply = INITIAL_FRAGMENTS_SUPPLY;
@@ -194,7 +224,10 @@ contract DENJI is ERC20Detailed, Ownable {
         emit NewNextRebase(_nextRebase);
     }
 
-    function setRewardYield(uint256 _rewardYield, uint256 _rewardYieldDenominator) external onlyOwner {
+    function setRewardYield(
+        uint256 _rewardYield,
+        uint256 _rewardYieldDenominator
+    ) external onlyOwner {
         rewardYield = _rewardYield;
         rewardYieldDenominator = _rewardYieldDenominator;
 
@@ -228,7 +261,10 @@ contract DENJI is ERC20Detailed, Ownable {
         emit DustSwiped(_receiver, balance);
     }
 
-    function coreRebase(uint256 epoch, int256 supplyDelta) private returns (uint256) {
+    function coreRebase(uint256 epoch, int256 supplyDelta)
+        private
+        returns (uint256)
+    {
         if (supplyDelta == 0) {
             emit LogRebase(epoch, _totalSupply);
             return _totalSupply;
@@ -255,7 +291,9 @@ contract DENJI is ERC20Detailed, Ownable {
         if (!inSwap) {
             uint256 epoch = block.timestamp;
             uint256 circulatingSupply = getCirculatingSupply();
-            int256 supplyDelta = int256(circulatingSupply.mul(rewardYield).div(rewardYieldDenominator));
+            int256 supplyDelta = int256(
+                circulatingSupply.mul(rewardYield).div(rewardYieldDenominator)
+            );
 
             coreRebase(epoch, supplyDelta);
             nextRebase = epoch + rebaseFrequency;
@@ -295,7 +333,12 @@ contract DENJI is ERC20Detailed, Ownable {
         maxWalletDivisor = divisor;
     }
 
-    function allowance(address owner_, address spender) public view override returns (uint256) {
+    function allowance(address owner_, address spender)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return _allowedFragments[owner_][spender];
     }
 
@@ -333,18 +376,33 @@ contract DENJI is ERC20Detailed, Ownable {
             swapBack();
         }
 
-        if (recipient != address(pairContract) && !_isLimitExempt[recipient] && isMaxWalletEnabled) {
+        if (
+            recipient != address(pairContract) &&
+            !_isLimitExempt[recipient] &&
+            isMaxWalletEnabled
+        ) {
             uint256 max = getMaxWallet();
-            require(balanceOf(recipient) + amount <= max, "Balance exceeds max wallet limit");
+            require(
+                balanceOf(recipient) + amount <= max,
+                "Balance exceeds max wallet limit"
+            );
         }
 
         _gonBalances[sender] = _gonBalances[sender].sub(gonAmount);
 
-        uint256 gonAmountReceived = shouldTakeFee(sender, recipient) ? takeFee(sender, gonAmount) : gonAmount;
+        uint256 gonAmountReceived = shouldTakeFee(sender, recipient)
+            ? takeFee(sender, recipient, gonAmount)
+            : gonAmount;
 
-        _gonBalances[recipient] = _gonBalances[recipient].add(gonAmountReceived);
+        _gonBalances[recipient] = _gonBalances[recipient].add(
+            gonAmountReceived
+        );
 
-        emit Transfer(sender, recipient, gonAmountReceived.div(_gonsPerFragment));
+        emit Transfer(
+            sender,
+            recipient,
+            gonAmountReceived.div(_gonsPerFragment)
+        );
 
         if (shouldRebase() && autoRebase) {
             _rebase();
@@ -359,10 +417,9 @@ contract DENJI is ERC20Detailed, Ownable {
         uint256 value
     ) external override validRecipient(to) returns (bool) {
         if (_allowedFragments[from][msg.sender] != ~uint256(0)) {
-            _allowedFragments[from][msg.sender] = _allowedFragments[from][msg.sender].sub(
-                value,
-                "Insufficient Allowance"
-            );
+            _allowedFragments[from][msg.sender] = _allowedFragments[from][
+                msg.sender
+            ].sub(value, "Insufficient Allowance");
         }
 
         _transferFrom(from, to, value);
@@ -370,15 +427,24 @@ contract DENJI is ERC20Detailed, Ownable {
     }
 
     function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
-        uint256 contractTokenBalance = _gonBalances[address(this)].div(_gonsPerFragment);
-        uint256 amountToLiquify = contractTokenBalance.mul(dynamicLiquidityFee).div(totalFee).div(2);
+        uint256 dynamicLiquidityFee = isOverLiquified(
+            targetLiquidity,
+            targetLiquidityDenominator
+        )
+            ? 0
+            : buyFee.liquidity + sellFee.liquidity;
+        uint256 contractTokenBalance = _gonBalances[address(this)].div(
+            _gonsPerFragment
+        );
+        uint256 amountToLiquify = contractTokenBalance
+            .mul(dynamicLiquidityFee)
+            .div(totalBuyFee + totalSellFee)
+            .div(2);
         uint256 amountToSwap = contractTokenBalance.sub(amountToLiquify);
 
-        address[] memory path = new address[](3);
+        address[] memory path = new address[](2);
         path[0] = address(this);
-        path[1] = address(USDC);
-        path[2] = router.WETH();
+        path[1] = router.WETH();
 
         uint256 balanceBefore = address(this).balance;
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -389,32 +455,29 @@ contract DENJI is ERC20Detailed, Ownable {
             block.timestamp + 100
         );
         uint256 amountETH = address(this).balance.sub(balanceBefore);
-
-        path = new address[](2);
-        path[0] = router.WETH();
-        path[1] = address(USDC);
-
-        router.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: amountETH }(
-            0,
-            path,
-            address(this),
-            block.timestamp.add(300)
+        uint256 totalETHFee = (totalBuyFee + totalSellFee).sub(
+            dynamicLiquidityFee.div(2)
         );
 
-        uint256 amountUSDC = USDC.balanceOf(address(this));
-        uint256 totalETHFee = totalFee.sub(dynamicLiquidityFee.div(2));
+        uint256 amountETHLiquidity = amountETH
+            .mul(dynamicLiquidityFee)
+            .div(totalETHFee)
+            .div(2);
 
-        uint256 amountUSDCLiquidity = amountUSDC.mul(dynamicLiquidityFee).div(totalETHFee).div(2);
+        uint256 amountETHTreasury = amountETH
+            .mul(buyFee.treasury + sellFee.treasury)
+            .div(totalETHFee);
 
-        uint256 amountUSDCTreasury = amountUSDC.mul(treasuryFee).div(totalETHFee);
-
-        USDC.transfer(treasuryReceiver, amountUSDCTreasury);
+        if (amountETHTreasury > 0) {
+            (bool success, ) = treasuryReceiver.call{value: amountETHTreasury}(
+                ""
+            );
+            require(success, "ETH transfer failed");
+        }
 
         if (amountToLiquify > 0) {
-            router.addLiquidity(
-                address(USDC),
+            router.addLiquidityETH{value: amountETHLiquidity}(
                 address(this),
-                amountUSDCLiquidity,
                 amountToLiquify,
                 0,
                 0,
@@ -424,14 +487,34 @@ contract DENJI is ERC20Detailed, Ownable {
         }
     }
 
-    function takeFee(address sender, uint256 gonAmount) internal returns (uint256) {
-        uint256 _totalFee = totalFee;
-        uint256 feeAmount = gonAmount.mul(_totalFee).div(feeDenominator);
+    function takeFee(
+        address sender,
+        address recipient,
+        uint256 gonAmount
+    ) internal returns (uint256) {
+        uint256 _totalFee;
+        if (sender == address(pairContract)) {
+            _totalFee = totalBuyFee;
+        } else if (recipient == address(pairContract)) {
+            _totalFee = totalSellFee;
+        }
 
-        _gonBalances[address(this)] = _gonBalances[address(this)].add(feeAmount);
+        if (_totalFee > 0) {
+            uint256 feeAmount = gonAmount.mul(_totalFee).div(feeDenominator);
 
-        emit Transfer(sender, address(this), feeAmount.div(_gonsPerFragment));
-        return gonAmount.sub(feeAmount);
+            _gonBalances[address(this)] = _gonBalances[address(this)].add(
+                feeAmount
+            );
+
+            emit Transfer(
+                sender,
+                address(this),
+                feeAmount.div(_gonsPerFragment)
+            );
+            return gonAmount.sub(feeAmount);
+        }
+
+        return gonAmount;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue)
@@ -443,15 +526,31 @@ contract DENJI is ERC20Detailed, Ownable {
         if (subtractedValue >= oldValue) {
             _allowedFragments[msg.sender][spender] = 0;
         } else {
-            _allowedFragments[msg.sender][spender] = oldValue.sub(subtractedValue);
+            _allowedFragments[msg.sender][spender] = oldValue.sub(
+                subtractedValue
+            );
         }
-        emit Approval(msg.sender, spender, _allowedFragments[msg.sender][spender]);
+        emit Approval(
+            msg.sender,
+            spender,
+            _allowedFragments[msg.sender][spender]
+        );
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue) external initialDistributionLock returns (bool) {
-        _allowedFragments[msg.sender][spender] = _allowedFragments[msg.sender][spender].add(addedValue);
-        emit Approval(msg.sender, spender, _allowedFragments[msg.sender][spender]);
+    function increaseAllowance(address spender, uint256 addedValue)
+        external
+        initialDistributionLock
+        returns (bool)
+    {
+        _allowedFragments[msg.sender][spender] = _allowedFragments[msg.sender][
+            spender
+        ].add(addedValue);
+        emit Approval(
+            msg.sender,
+            spender,
+            _allowedFragments[msg.sender][spender]
+        );
         return true;
     }
 
@@ -489,8 +588,14 @@ contract DENJI is ERC20Detailed, Ownable {
         emit AddressExemptedFromFee(_addr);
     }
 
-    function shouldTakeFee(address from, address to) internal view returns (bool) {
-        return (address(pairContract) != from ) && (address(pairContract) == to) && (!_isFeeExempt[from]);
+    function shouldTakeFee(address from, address to)
+        internal
+        view
+        returns (bool)
+    {
+        return ((address(pairContract) == from ||
+            address(pairContract) == to) &&
+            (!_isFeeExempt[from] && !_isFeeExempt[to]));
     }
 
     function setSwapBackSettings(
@@ -519,10 +624,16 @@ contract DENJI is ERC20Detailed, Ownable {
     }
 
     function getCirculatingSupply() public view returns (uint256) {
-        return (TOTAL_GONS.sub(_gonBalances[DEAD]).sub(_gonBalances[ZERO])).div(_gonsPerFragment);
+        return
+            (TOTAL_GONS.sub(_gonBalances[DEAD]).sub(_gonBalances[ZERO])).div(
+                _gonsPerFragment
+            );
     }
 
-    function setTargetLiquidity(uint256 target, uint256 accuracy) external onlyOwner {
+    function setTargetLiquidity(uint256 target, uint256 accuracy)
+        external
+        onlyOwner
+    {
         targetLiquidity = target;
         targetLiquidityDenominator = accuracy;
 
@@ -545,32 +656,57 @@ contract DENJI is ERC20Detailed, Ownable {
         pairContract.sync();
     }
 
-    function setFeeReceivers(address _autoLiquidityReceiver, address _treasuryReceiver) external onlyOwner {
+    function setFeeReceivers(
+        address _autoLiquidityReceiver,
+        address _treasuryReceiver
+    ) external onlyOwner {
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
 
         emit NewFeeReceiversSet(_autoLiquidityReceiver, _treasuryReceiver);
     }
 
-    function setFees(
-        uint256 _liquidityFee,
-        uint256 _treasuryFee,
+    function setBuyFees(
+        uint16 _liquidityFee,
+        uint16 _treasuryFee,
         uint256 _feeDenominator
     ) external onlyOwner {
-        liquidityFee = _liquidityFee;
-        treasuryFee = _treasuryFee;
-        totalFee = liquidityFee.add(treasuryFee);
+        buyFee = Fee(_liquidityFee, _treasuryFee);
         feeDenominator = _feeDenominator;
+        totalBuyFee = _liquidityFee + _treasuryFee;
 
-        emit NewFeesSet(_liquidityFee, _treasuryFee, _feeDenominator);
+        emit NewBuyFeesSet(_liquidityFee, _treasuryFee, _feeDenominator);
     }
 
-    function getLiquidityBacking(uint256 accuracy) public view returns (uint256) {
-        uint256 liquidityBalance = _gonBalances[address(pairContract)].div(_gonsPerFragment);
-        return accuracy.mul(liquidityBalance.mul(2)).div(getCirculatingSupply());
+    function setSellFees(
+        uint16 _liquidityFee,
+        uint16 _treasuryFee,
+        uint256 _feeDenominator
+    ) external onlyOwner {
+        sellFee = Fee(_liquidityFee, _treasuryFee);
+        feeDenominator = _feeDenominator;
+        totalSellFee = _liquidityFee + _treasuryFee;
+
+        emit NewSellFeesSet(_liquidityFee, _treasuryFee, _feeDenominator);
     }
 
-    function isOverLiquified(uint256 target, uint256 accuracy) public view returns (bool) {
+    function getLiquidityBacking(uint256 accuracy)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 liquidityBalance = _gonBalances[address(pairContract)].div(
+            _gonsPerFragment
+        );
+        return
+            accuracy.mul(liquidityBalance.mul(2)).div(getCirculatingSupply());
+    }
+
+    function isOverLiquified(uint256 target, uint256 accuracy)
+        public
+        view
+        returns (bool)
+    {
         return getLiquidityBacking(accuracy) > target;
     }
 
