@@ -25,14 +25,14 @@ module.exports = {
       url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       timeout: 200000,
     },
-    arbitrum: {
+    arbitrumOne: {
       accounts: [deployAccountKey],
       chainId: 42161,
-      url: `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      url: 'https://arb1.arbitrum.io/rpc',
       timeout: 200000,
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: "ZCDYAF9BWASVJUQ6M8HHC74MIVTBDS6T82"
   }
 };
