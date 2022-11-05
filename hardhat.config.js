@@ -33,6 +33,6 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: "ZCDYAF9BWASVJUQ6M8HHC74MIVTBDS6T82"
+    apiKey: process.env.ARBITRUM_API_KEY
   }
 };
