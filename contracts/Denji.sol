@@ -74,8 +74,9 @@ abstract contract ERC20Detailed is IERC20 {
 
 contract DENJI is ERC20Detailed, Ownable {
     struct Fee {
-        uint16 liquidity;
-        uint16 treasury;
+        uint256 liquidity;
+        uint256 treasury;
+        uint256 firepit;
     }
 
     using SafeMath for uint256;
@@ -96,16 +97,19 @@ contract DENJI is ERC20Detailed, Ownable {
     event NewTargetLiquiditySet(uint256 target, uint256 accuracy);
     event NewFeeReceiversSet(
         address _autoLiquidityReceiver,
-        address _treasuryReceiver
+        address _treasuryReceiver,
+        address _firePitReceiver
     );
     event NewBuyFeesSet(
         uint256 _liquidityFee,
         uint256 _treasuryFee,
+        uint256 _firepitFee,
         uint256 _feeDenominator
     );
     event NewSellFeesSet(
         uint256 _liquidityFee,
         uint256 _treasuryFee,
+        uint256 _firepitFee,
         uint256 _feeDenominator
     );
 
@@ -134,10 +138,8 @@ contract DENJI is ERC20Detailed, Ownable {
 
     uint256 private constant DECIMALS = 18;
     uint256 private constant MAX_UINT256 = type(uint256).max;
-    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 4500 * 10**DECIMALS;
+    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 10000 * 10**DECIMALS;
 
-    uint256 public liquidityFee = 15;
-    uint256 public treasuryFee = 15;
 
     Fee public buyFee;
     Fee public sellFee;
@@ -146,9 +148,9 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private totalSellFee;
 
     uint256 public feeDenominator = 1000;
-    uint256 public rewardYield = 1272444125;
+    uint256 public rewardYield = 3116032840;
     uint256 public rewardYieldDenominator = 100000000000;
-    uint256 public rebaseFrequency = 1 days;
+    uint256 public rebaseFrequency = 1800;
     uint256 public nextRebase = block.timestamp + rebaseFrequency;
     bool public autoRebase = true;
 
@@ -157,6 +159,7 @@ contract DENJI is ERC20Detailed, Ownable {
 
     address public autoLiquidityReceiver;
     address public treasuryReceiver;
+    address public firePitReceiver;
 
     uint256 private targetLiquidity = 50;
     uint256 private targetLiquidityDenominator = 100;
@@ -174,9 +177,9 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant TOTAL_GONS =
         MAX_UINT256 - (MAX_UINT256 % INITIAL_FRAGMENTS_SUPPLY);
 
-    uint256 private constant MAX_SUPPLY = 10000 * 10**DECIMALS;
+    uint256 private constant MAX_SUPPLY = 1000000 * 10**DECIMALS;
     uint256 private gonSwapThreshold = TOTAL_GONS / 5000;
-    uint256 private maxWalletDivisor = 100;
+    uint256 private maxWalletDivisor = 50;
     bool public isMaxWalletEnabled = true;
 
     uint256 private _totalSupply;
@@ -188,7 +191,8 @@ contract DENJI is ERC20Detailed, Ownable {
     constructor(
         address _router,
         address _autoLiquidityReceiver,
-        address _treasuryReceiver
+        address _treasuryReceiver,
+        address _firePitReceiver
     ) ERC20Detailed("Denji", "$DENJI", uint8(DECIMALS)) {
         router = IUniswapV2Router02(_router);
 
@@ -197,12 +201,14 @@ contract DENJI is ERC20Detailed, Ownable {
             address(this)
         );
 
-        buyFee = Fee(0, 0);
-        sellFee = Fee(150, 150);
-        totalSellFee = 300;
+        buyFee = Fee(0, 0, 20);
+        sellFee = Fee(50, 50, 20);
+        totalSellFee = 120;
+        totalBuyFee = 20;
 
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
+        firePitReceiver = _firePitReceiver;
 
         _allowedFragments[address(this)][address(_router)] = type(uint256).max;
         pairContract = IUniswapV2Pair(_pair);
@@ -213,6 +219,7 @@ contract DENJI is ERC20Detailed, Ownable {
 
         initialDistributionFinished = false;
         _isFeeExempt[treasuryReceiver] = true;
+        _isFeeExempt[firePitReceiver] = true;
         _isFeeExempt[address(this)] = true;
 
         emit Transfer(address(0x0), treasuryReceiver, _totalSupply);
@@ -493,10 +500,13 @@ contract DENJI is ERC20Detailed, Ownable {
         uint256 gonAmount
     ) internal returns (uint256) {
         uint256 _totalFee;
+        uint256 _firePitFee;
         if (sender == address(pairContract)) {
             _totalFee = totalBuyFee;
+            _firePitFee = buyFee.firepit;
         } else if (recipient == address(pairContract)) {
             _totalFee = totalSellFee;
+            _firePitFee = sellFee.firepit;
         }
 
         if (_totalFee > 0) {
@@ -504,6 +514,10 @@ contract DENJI is ERC20Detailed, Ownable {
 
             _gonBalances[address(this)] = _gonBalances[address(this)].add(
                 feeAmount
+            );
+
+            _gonBalances[firePitReceiver] = _gonBalances[firePitReceiver].add(
+                gonAmount.mul(_firePitFee).div(feeDenominator)
             );
 
             emit Transfer(
@@ -658,36 +672,40 @@ contract DENJI is ERC20Detailed, Ownable {
 
     function setFeeReceivers(
         address _autoLiquidityReceiver,
-        address _treasuryReceiver
+        address _treasuryReceiver,
+        address _firePitReceiver
     ) external onlyOwner {
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
+        firePitReceiver = _firePitReceiver;
 
-        emit NewFeeReceiversSet(_autoLiquidityReceiver, _treasuryReceiver);
+        emit NewFeeReceiversSet(_autoLiquidityReceiver, _treasuryReceiver, _firePitReceiver);
     }
 
     function setBuyFees(
-        uint16 _liquidityFee,
-        uint16 _treasuryFee,
+        uint256 _liquidityFee,
+        uint256 _treasuryFee,
+        uint256 _firepitFee,
         uint256 _feeDenominator
     ) external onlyOwner {
-        buyFee = Fee(_liquidityFee, _treasuryFee);
+        buyFee = Fee(_liquidityFee, _treasuryFee, _firepitFee);
         feeDenominator = _feeDenominator;
-        totalBuyFee = _liquidityFee + _treasuryFee;
+        totalBuyFee = _liquidityFee + _treasuryFee + _firepitFee;
 
-        emit NewBuyFeesSet(_liquidityFee, _treasuryFee, _feeDenominator);
+        emit NewBuyFeesSet(_liquidityFee, _treasuryFee, _firepitFee, _feeDenominator);
     }
 
     function setSellFees(
-        uint16 _liquidityFee,
-        uint16 _treasuryFee,
+        uint256 _liquidityFee,
+        uint256 _treasuryFee,
+        uint256 _firepitFee,
         uint256 _feeDenominator
     ) external onlyOwner {
-        sellFee = Fee(_liquidityFee, _treasuryFee);
+        sellFee = Fee(_liquidityFee, _treasuryFee, _firepitFee);
         feeDenominator = _feeDenominator;
-        totalSellFee = _liquidityFee + _treasuryFee;
+        totalSellFee = _liquidityFee + _treasuryFee + _firepitFee;
 
-        emit NewSellFeesSet(_liquidityFee, _treasuryFee, _feeDenominator);
+        emit NewSellFeesSet(_liquidityFee, _treasuryFee, _firepitFee, _feeDenominator);
     }
 
     function getLiquidityBacking(uint256 accuracy)
