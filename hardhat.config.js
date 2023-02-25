@@ -31,6 +31,13 @@ module.exports = {
       url: 'https://arb1.arbitrum.io/rpc',
       timeout: 200000,
     },
+    arbitrumGoerli: {
+      accounts: [deployAccountKey],
+      chainId: 421613,
+      url: `https://arb-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      timeout: 200000,
+    },
+    
   },
   etherscan: {
     apiKey: process.env.ARBITRUM_API_KEY
