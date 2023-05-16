@@ -1,10 +1,10 @@
-require("@nomiclabs/hardhat-waffle");
+require("@nomicfoundation/hardhat-toolbox");
 require("@nomiclabs/hardhat-etherscan");
-
+require('dotenv').config();
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
-require('dotenv').config();
+
 
 deployAccountKey = process.env.DEPLOY_ACCOUNT_KEY;
 const alchemyapi = process.env.ALCHEMY_API_KEY;
@@ -12,7 +12,6 @@ module.exports = {
   solidity: "0.8.16",
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {},
     mainnet: {
       accounts: [deployAccountKey],
       chainId: 1,

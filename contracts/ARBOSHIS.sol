@@ -23,15 +23,22 @@ contract ARBOSHIS is ERC721, Ownable {
     uint256 public constant MAX_SUPPLY = 200;
 
     // Public mint constants
-    uint256 private _mintPrice = 0.001 ether;
+    uint256 private _mintPrice = 0.0001 ether;
 
     bool private _locked = false; // for re-entrancy guard
+
+    uint16[9999] public ids;
+
+    uint16 private index;
 
     // Initializes the contract by setting a `name` and a `symbol`
     constructor(string memory _initBaseURI) ERC721("ARBOSHIS", "ANNOY") {
         setBaseURI(_initBaseURI);
-        for (uint256 i = 0; i < 10; i++) {
-            _safeMint(msg.sender, i);
+
+        for (uint256 i = 10; i != 0; ) {
+            unchecked{ --i; }
+            uint256 _random = uint256(keccak256(abi.encodePacked(index, msg.sender, block.timestamp, blockhash(block.number-1))));
+            _safeMint(msg.sender, _pickRandomUniqueId(_random));
             _supply.increment();
         }
     }
@@ -72,16 +79,27 @@ contract ARBOSHIS is ERC721, Ownable {
 
         _locked = true;
 
-        for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = totalSupply();
-
-            _safeMint(msg.sender, tokenId);
+        for (uint256 i = quantity; i != 0; ) {
+            unchecked{ --i; }
+            uint256 _random = uint256(keccak256(abi.encodePacked(index, msg.sender, block.timestamp, blockhash(block.number-1))));
+            _safeMint(msg.sender, _pickRandomUniqueId(_random));
             _supply.increment();
         }
 
         _locked = false;
     }
 
+
+    // Set randon number
+    function _pickRandomUniqueId(uint256 random) private returns (uint256 id) {
+        unchecked{ ++index; }
+        uint256 len = ids.length - index;
+        require(len != 0, 'no ids left');
+        uint256 randomIndex = random % len;
+        id = ids[randomIndex] != 0 ? ids[randomIndex] : randomIndex;
+        ids[randomIndex] = uint16(ids[len - 1] == 0 ? len - 1 : ids[len - 1]);
+        ids[len - 1] = 0;
+    }
 
     // Set mint price
     function setMintPrice(uint256 _newMintPrice) external onlyOwner {

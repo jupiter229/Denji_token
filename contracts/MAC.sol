@@ -72,7 +72,7 @@ abstract contract ERC20Detailed is IERC20 {
     }
 }
 
-contract DENJI is ERC20Detailed, Ownable {
+contract MAC is ERC20Detailed, Ownable {
     struct Fee {
         uint256 liquidity;
         uint256 treasury;
@@ -135,7 +135,7 @@ contract DENJI is ERC20Detailed, Ownable {
 
     uint256 private constant DECIMALS = 18;
     uint256 private constant MAX_UINT256 = type(uint256).max;
-    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 10000 * 10**DECIMALS;
+    uint256 private constant INITIAL_FRAGMENTS_SUPPLY = 1000000 * 10**DECIMALS;
 
     Fee public buyFee;
     Fee public sellFee;
@@ -144,7 +144,7 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private totalSellFee;
 
     uint256 public feeDenominator = 1000;
-    uint256 public rewardYield = 45701484;
+    uint256 public rewardYield = 2000000000;
     uint256 public rewardYieldDenominator = 100000000000;
     uint256 public rebaseFrequency = 1800;
     uint256 public nextRebase = block.timestamp + rebaseFrequency;
@@ -172,10 +172,10 @@ contract DENJI is ERC20Detailed, Ownable {
     uint256 private constant TOTAL_GONS =
         MAX_UINT256 - (MAX_UINT256 % INITIAL_FRAGMENTS_SUPPLY);
 
-    uint256 private constant MAX_SUPPLY = 1000000 * 10**DECIMALS;
+    uint256 private constant MAX_SUPPLY = 100000000000 * 10**DECIMALS;
     uint256 private gonSwapThreshold = TOTAL_GONS / 5000;
     uint256 private maxWalletDivisor = 50;
-    bool public isMaxWalletEnabled = true;
+    bool public isMaxWalletEnabled = false;
 
     uint256 private _totalSupply;
     uint256 private _gonsPerFragment;
@@ -187,7 +187,7 @@ contract DENJI is ERC20Detailed, Ownable {
         address _router,
         address _autoLiquidityReceiver,
         address _treasuryReceiver
-    ) ERC20Detailed("Denji", "$DENJI", uint8(DECIMALS)) {
+    ) ERC20Detailed("MAC", "MAC", uint8(DECIMALS)) {
         router = IUniswapV2Router02(_router);
 
         address _pair = IUniswapV2Factory(router.factory()).createPair(
@@ -195,10 +195,10 @@ contract DENJI is ERC20Detailed, Ownable {
             address(this)
         );
 
-        buyFee = Fee(0, 0, 20);
-        sellFee = Fee(50, 50, 20);
-        totalSellFee = 120;
-        totalBuyFee = 20;
+        buyFee = Fee(0, 0, 0);
+        sellFee = Fee(50, 50, 0);
+        totalSellFee = 100;
+        totalBuyFee = 0;
 
         autoLiquidityReceiver = _autoLiquidityReceiver;
         treasuryReceiver = _treasuryReceiver;
