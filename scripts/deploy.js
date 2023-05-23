@@ -4,7 +4,8 @@ async function main() {
   const MAC = await hre.ethers.getContractFactory("MAC");
 
   // Start deployment, returning a promise that resolves to a contract object
-  const v2Router = "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506";
+  const v2Router = "0xCc7aDc94F3D80127849D2b41b6439b7CF1eB4Ae0";
+  // const v2Router = "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506";
   const v1Router = "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f";
   // const v2Router = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
   

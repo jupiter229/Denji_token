@@ -12,6 +12,10 @@ module.exports = {
   solidity: "0.8.16",
   defaultNetwork: "hardhat",
   networks: {
+    hardhat: {
+      gasPrice: 470000000000,
+      chainId: 31337,
+    },
     mainnet: {
       accounts: [deployAccountKey],
       chainId: 1,
@@ -23,6 +27,13 @@ module.exports = {
       chainId: 5,
       url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       timeout: 200000,
+    },
+    testnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: 97,
+      gasPrice: 20000000000,
+      gas: 6000000,
+      accounts: [deployAccountKey],
     },
     arbitrumOne: {
       accounts: [deployAccountKey],
@@ -39,6 +50,6 @@ module.exports = {
     
   },
   etherscan: {
-    apiKey: process.env.ARBITRUM_API_KEY
+    apiKey: process.env.BSCSCAN_API_KEY
   }
 };
