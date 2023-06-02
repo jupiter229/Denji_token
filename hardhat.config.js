@@ -28,7 +28,7 @@ module.exports = {
       url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       timeout: 200000,
     },
-    testnet: {
+    bsctestnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
       gasPrice: 20000000000,
@@ -47,9 +47,26 @@ module.exports = {
       url: `https://arb-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
       timeout: 200000,
     },
+    testnet: { //pulsechain Testnet
+      chainId: 943,
+      url: "https://rpc.v4.testnet.pulsechain.com",
+      accounts: [deployAccountKey],
+      gasPrice: 20000000000,
+      gas: 6000000,
+   }
     
   },
   etherscan: {
     apiKey: process.env.BSCSCAN_API_KEY
   }
 };
+
+// require("@nomiclabs/hardhat-etherscan");
+// const { chainConfig } = require("@nomiclabs/hardhat-etherscan/dist/src/ChainConfig");
+// chainConfig['testnet'] = {
+//   chainId: 942,
+//   urls: {
+//     apiURL: "https://scan.v4.testnet.pulsechain.com/api",
+//     browserURL: "https://scan.v4.testnet.pulsechain.com",
+//   },
+// }
